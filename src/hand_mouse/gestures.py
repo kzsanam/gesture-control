@@ -20,6 +20,7 @@ def isPinch(hand, finger_number, sensitivity):
     hand_size = distance(wrist, middle_mcp)
 
     finger = hand.landmark[finger_number]
+    # print(f"distance: {distance(thumb, finger) / hand_size}")
     return distance(thumb, finger) / hand_size < sensitivity
 
 
@@ -28,11 +29,11 @@ def isMiddlePinch(hand) -> bool:
 
 
 def isIndexPinch(hand) -> bool:
-    return isPinch(hand, 8, 0.2)
+    return isPinch(hand, 8, 0.18)
 
 
 def isRingPinch(hand) -> bool:
-    return isPinch(hand, 16, 0.2)
+    return isPinch(hand, 16, 0.15)
 
 
 def detectGesture(hand):

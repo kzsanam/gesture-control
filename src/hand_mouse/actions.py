@@ -27,12 +27,11 @@ class ActionRunner:
     mouse_y = 0
 
     SMOOTHING = 0.2
-    DEADZONE = 0.0005
+    DEADZONE = 0.00025
 
     def rightClick(self):
         print("RIGHT CLICK")
         pyautogui.rightClick()
-        time.sleep(0.2)
 
     def leftClick(self):
         print("CLICK")
@@ -76,8 +75,8 @@ class ActionRunner:
 
         pyautogui.moveTo(self.mouse_x, self.mouse_y)
 
-    SCROLL_SENSITIVITY = 500
-    DEAD_LINE = 0.002
+    SCROLL_SENSITIVITY = 200
+    SCROLL_DEAD_LINE = 0.002
     def scroll(self, hand):
         print("SCROLL")
         middle = hand.landmark[12]
@@ -87,16 +86,29 @@ class ActionRunner:
         dy = middle.y - self.prev_scroll_y
 
         print(f"scroll: {dy}")
-        if abs(dy) > self.DEAD_LINE:
+        if abs(dy) > self.SCROLL_DEAD_LINE:
             pyautogui.scroll(int(dy * self.SCROLL_SENSITIVITY))
 
         self.prev_scroll_y = middle.y
 
     CLICK_TIME = 0.2
+    DEBOUNCE_FRAMES = 4
     pinch_start_time = 0
     first_click_start = 0
+    right_click_start = 0
     actionEnum = ActionEnum.IDLE
     prevActionEnum = ActionEnum.IDLE
+    _pending_gesture = None
+    _pending_count = 0
+
+    def _debounce(self, gesture) -> Gesture:
+        if gesture != Gesture.Default:
+            self._pending_count = 0
+            return gesture
+        self._pending_count += 1
+        if self._pending_count >= self.DEBOUNCE_FRAMES:
+            return Gesture.Default
+        return self._pending_gesture or Gesture.Default
 
     def _selectAction(self, gesture) -> ActionEnum:
         now = time.time()
@@ -116,10 +128,14 @@ class ActionRunner:
             case Gesture.MIDDLE_PINCH:
                 action_out = ActionEnum.SCROLL
             case Gesture.RING_PINCH:
-                action_out = ActionEnum.RIGHT_CLICK
+                if now - self.right_click_start > self.CLICK_TIME:
+                    action_out = ActionEnum.RIGHT_CLICK
+                    self.right_click_start = now
+                else:
+                    action_out = ActionEnum.IDLE
             case Gesture.Default:
                 if self.actionEnum == ActionEnum.HOLD:
-                    if now - self.pinch_start_time <= self.CLICK_TIME:
+                    if now - self.pinch_start_time <= self.CLICK_TIME*5:
                         self.first_click_start = now
                         action_out = ActionEnum.CLICK
                     else:
@@ -134,10 +150,13 @@ class ActionRunner:
 
     def run(self, gesture, hand):
         self.prevActionEnum = self.actionEnum
-        self.actionEnum = self._selectAction(gesture)
+        debounced = self._debounce(gesture)
+        self.actionEnum = self._selectAction(debounced)
+        # self.actionEnum = self._selectAction(gesture)
         match self.actionEnum:
             case ActionEnum.IDLE:
-                pass
+                if (self.prevActionEnum == ActionEnum.MOVE):
+                    pyautogui.mouseUp()
             case ActionEnum.CLICK:
                 self.leftClick()
             case ActionEnum.MOVE:
