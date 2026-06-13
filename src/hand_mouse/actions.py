@@ -26,8 +26,9 @@ class ActionRunner:
     mouse_x = 0
     mouse_y = 0
 
-    SMOOTHING = 0.2
+    SMOOTHING = 0.2#0.2
     DEADZONE = 0.00025
+    MOVE_ACCELERATION = 8
 
     def rightClick(self):
         print("RIGHT CLICK")
@@ -44,12 +45,12 @@ class ActionRunner:
     def move(self, hand, screen_w, screen_h):
         index = hand.landmark[8]
 
-        if self.prev_x == 0 and self.prev_y == 0:
-            self.prev_x = index.x
-            self.prev_y = index.y
-
         x = index.x
         y = index.y
+
+        if self.prev_x == 0 and self.prev_y == 0:
+            self.prev_x = x
+            self.prev_y = y
 
         smooth_x = self.prev_x + self.SMOOTHING * (x - self.prev_x)
         smooth_y = self.prev_y + self.SMOOTHING * (y - self.prev_y)
@@ -70,8 +71,11 @@ class ActionRunner:
             self.mouse_x = max(0, int(smooth_x * self.screen_w))
             self.mouse_y = max(0, int(smooth_y * self.screen_h))
         else:
-            self.mouse_x = int(self.mouse_x + d_x * self.screen_w * 8)
-            self.mouse_y = int(self.mouse_y + d_y * self.screen_h * 8)
+            self.mouse_x = int(self.mouse_x + d_x * self.screen_w * self.MOVE_ACCELERATION)
+            self.mouse_y = int(self.mouse_y + d_y * self.screen_h * self.MOVE_ACCELERATION)
+
+        self.mouse_x = max(0, min(self.mouse_x, self.screen_w - 1))
+        self.mouse_y = max(0, min(self.mouse_y, self.screen_h - 1))
 
         pyautogui.moveTo(self.mouse_x, self.mouse_y)
 
