@@ -19,11 +19,11 @@ class ActionRunner:
     DEADZONE = 0.00025
     MOVE_ACCELERATION = 8
 
-    def rightClick(self):
+    def right_click(self):
         print("RIGHT CLICK")
         pyautogui.rightClick()
 
-    def leftClick(self):
+    def left_click(self):
         print("CLICK")
         pyautogui.click()
 
@@ -90,8 +90,8 @@ class ActionRunner:
     pinch_start_time = 0
     first_click_start = 0
     right_click_start = 0
-    actionEnum = ActionEnum.IDLE
-    prevActionEnum = ActionEnum.IDLE
+    action_enum = ActionEnum.IDLE
+    prev_action_enum = ActionEnum.IDLE
     _pending_gesture = None
     _pending_count = 0
 
@@ -104,13 +104,13 @@ class ActionRunner:
             return Gesture.Default
         return self._pending_gesture or Gesture.Default
 
-    def _selectAction(self, gesture) -> ActionEnum:
+    def _select_action(self, gesture) -> ActionEnum:
         now = time.time()
-        action_out = self.actionEnum
+        action_out = self.action_enum
         match gesture:
             case Gesture.INDEX_PINCH:
-                if self.actionEnum != ActionEnum.MOVE:
-                    if self.actionEnum != ActionEnum.HOLD:
+                if self.action_enum != ActionEnum.MOVE:
+                    if self.action_enum != ActionEnum.HOLD:
                         self.pinch_start_time = now
                         action_out = ActionEnum.HOLD
                     else:
@@ -128,7 +128,7 @@ class ActionRunner:
                 else:
                     action_out = ActionEnum.IDLE
             case Gesture.Default:
-                if self.actionEnum == ActionEnum.HOLD:
+                if self.action_enum == ActionEnum.HOLD:
                     if now - self.pinch_start_time <= self.CLICK_TIME*5:
                         self.first_click_start = now
                         action_out = ActionEnum.CLICK
@@ -143,28 +143,28 @@ class ActionRunner:
         return action_out
 
     def run(self, gesture, hand):
-        self.prevActionEnum = self.actionEnum
+        self.prev_action_enum = self.action_enum
         debounced = self._debounce(gesture)
-        self.actionEnum = self._selectAction(debounced)
-        # self.actionEnum = self._selectAction(gesture)
-        match self.actionEnum:
+        self.action_enum = self._select_action(debounced)
+        # self.action_enum = self._select_action(gesture)
+        match self.action_enum:
             case ActionEnum.IDLE:
-                if (self.prevActionEnum == ActionEnum.MOVE):
+                if (self.prev_action_enum == ActionEnum.MOVE):
                     pyautogui.mouseUp()
             case ActionEnum.CLICK:
-                self.leftClick()
+                self.left_click()
             case ActionEnum.MOVE:
-                if (self.prevActionEnum != self.actionEnum):
+                if (self.prev_action_enum != self.action_enum):
                     self.prev_x = 0
                     self.prev_y = 0
                 self.move(hand, self.screen_w, self.screen_h)
             case ActionEnum.HOLD:
                 pass
             case ActionEnum.SCROLL:
-                if (self.prevActionEnum != self.actionEnum):
+                if (self.prev_action_enum != self.action_enum):
                     self.prev_scroll_y = None
                 self.scroll(hand)
             case ActionEnum.DRAG:
                 self.drag()
             case ActionEnum.RIGHT_CLICK:
-                self.rightClick()
+                self.right_click()

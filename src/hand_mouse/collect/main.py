@@ -17,6 +17,8 @@ import os
 import cv2
 import mediapipe as mp
 
+from hand_mouse.features import extract_features
+
 LABELS = {
     ord("0"): "default",
     ord("1"): "index_pinch",
@@ -30,19 +32,18 @@ PINCH_FINGERS = {
     "ring_pinch": 16,
 }
 
-PINCH_ON = 0.15   # record pinch when normalized dist < this
-PINCH_OFF = 0.20  # record default when ALL normalized dists > this
-
-
-def distance(a, b) -> float:
-    return math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
+PINCH_ON = 0.2  # record pinch when normalized dist < this
+PINCH_OFF = 0.15  # record default when ALL normalized dists > this
 
 
 def _pinch_distance(hand, finger_idx) -> float:
     wrist = hand.landmark[0]
     middle_mcp = hand.landmark[9]
-    hand_size = distance(wrist, middle_mcp)
-    return distance(hand.landmark[4], hand.landmark[finger_idx]) / (hand_size + 1e-6)
+    hand_size = math.sqrt((wrist.x - middle_mcp.x) ** 2 + (wrist.y - middle_mcp.y) ** 2)
+    thumb = hand.landmark[4]
+    tip = hand.landmark[finger_idx]
+    dist = math.sqrt((thumb.x - tip.x) ** 2 + (thumb.y - tip.y) ** 2)
+    return dist / (hand_size + 1e-6)
 
 
 def _should_record(label, hand) -> bool:
@@ -50,21 +51,8 @@ def _should_record(label, hand) -> bool:
         return _pinch_distance(hand, PINCH_FINGERS[label]) < PINCH_ON
     return all(_pinch_distance(hand, idx) > PINCH_OFF for idx in PINCH_FINGERS.values())
 
+
 OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "../../../data/landmarks.csv")
-
-
-def extract_features(hand) -> list[float]:
-    wrist = hand.landmark[0]
-    # Normalize all landmarks relative to wrist, scaled by hand size
-    middle_mcp = hand.landmark[9]
-    scale = ((wrist.x - middle_mcp.x) ** 2 + (wrist.y - middle_mcp.y) ** 2) ** 0.5
-
-    features = []
-    for lm in hand.landmark:
-        features.append((lm.x - wrist.x) / (scale + 1e-6))
-        features.append((lm.y - wrist.y) / (scale + 1e-6))
-        features.append((lm.z - wrist.z) / (scale + 1e-6))
-    return features
 
 
 def main():
@@ -103,14 +91,43 @@ def main():
                 rows.append([current_label] + extract_features(hand))
 
             accepting = hand is not None and _should_record(current_label, hand)
-            status_color = (0, 200, 0) if (recording and accepting) else (0, 100, 200) if recording else (0, 0, 200)
-            cv2.putText(frame, f"Label: {current_label}", (10, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-            status = "RECORDING" if (recording and accepting) else "PAUSED" if not recording else "RECORDING (rejected)"
-            cv2.putText(frame, f"{status}  samples: {len(rows)}", (10, 60),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, status_color, 2)
-            cv2.putText(frame, "0-3: select label  s: toggle record  q: quit+save", (10, h - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
+            status_color = (
+                (0, 200, 0)
+                if (recording and accepting)
+                else (0, 100, 200) if recording else (0, 0, 200)
+            )
+            cv2.putText(
+                frame,
+                f"Label: {current_label}",
+                (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (255, 255, 255),
+                2,
+            )
+            status = (
+                "RECORDING"
+                if (recording and accepting)
+                else "PAUSED" if not recording else "RECORDING (rejected)"
+            )
+            cv2.putText(
+                frame,
+                f"{status}  samples: {len(rows)}",
+                (10, 60),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                status_color,
+                2,
+            )
+            cv2.putText(
+                frame,
+                "0-3: select label  s: toggle record  q: quit+save",
+                (10, h - 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (200, 200, 200),
+                1,
+            )
 
             cv2.imshow("Collect", frame)
             key = cv2.waitKey(1) & 0xFF

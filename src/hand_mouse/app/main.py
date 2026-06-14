@@ -54,7 +54,7 @@ def camera_thread(frame_queue: queue.Queue, stop_event: threading.Event):
 
 def control_thread(frame_queue: queue.Queue, stop_event: threading.Event):
     runner = ActionRunner()
-    gestureRecognition = MLGestureRecognition()
+    gesture_recognition = MLGestureRecognition()
     while not stop_event.is_set():
         try:
             _frame, hand = frame_queue.get(timeout=0.1)
@@ -62,9 +62,9 @@ def control_thread(frame_queue: queue.Queue, stop_event: threading.Event):
             continue
 
         if hand is not None:
-            prev_action = runner.prevActionEnum
-            gestureRecognition.set_prev_action(prev_action)
-            gesture = gestureRecognition.detectGesture(hand)
+            prev_action = runner.prev_action_enum
+            gesture_recognition.set_prev_action(prev_action)
+            gesture = gesture_recognition.detect_gesture(hand)
             runner.run(gesture, hand)
 
 
