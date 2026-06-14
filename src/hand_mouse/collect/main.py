@@ -23,6 +23,35 @@ LABELS = {
     ord("3"): "ring_pinch",
 }
 
+# For pinch labels: only record when thumb-finger distance < this fraction of hand size
+# For default: only record when ALL pinch distances > this fraction
+PINCH_MAX = 0.18
+PINCH_MIN = 0.30
+
+PINCH_FINGERS = {
+    "index_pinch": 8,
+    "middle_pinch": 12,
+    "ring_pinch": 16,
+}
+
+
+def _pinch_distance(hand, finger_idx) -> float:
+    import math
+    wrist = hand.landmark[0]
+    middle_mcp = hand.landmark[9]
+    scale = math.sqrt((wrist.x - middle_mcp.x) ** 2 + (wrist.y - middle_mcp.y) ** 2)
+    thumb = hand.landmark[4]
+    finger = hand.landmark[finger_idx]
+    dist = math.sqrt((thumb.x - finger.x) ** 2 + (thumb.y - finger.y) ** 2)
+    return dist / (scale + 1e-6)
+
+
+def _should_record(label, hand) -> bool:
+    if label in PINCH_FINGERS:
+        return _pinch_distance(hand, PINCH_FINGERS[label]) < PINCH_MAX
+    # default: accept only when no finger is close to thumb
+    return all(_pinch_distance(hand, idx) > PINCH_MIN for idx in PINCH_FINGERS.values())
+
 OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "../../../data/landmarks.csv")
 
 
@@ -72,13 +101,15 @@ def main():
                 hand = results.multi_hand_landmarks[0]
                 mp_draw.draw_landmarks(frame, hand, mp_hands.HAND_CONNECTIONS)
 
-            if recording and hand is not None:
+            if recording and hand is not None and _should_record(current_label, hand):
                 rows.append([current_label] + extract_features(hand))
 
-            status_color = (0, 200, 0) if recording else (0, 0, 200)
+            accepting = hand is not None and _should_record(current_label, hand)
+            status_color = (0, 200, 0) if (recording and accepting) else (0, 100, 200) if recording else (0, 0, 200)
             cv2.putText(frame, f"Label: {current_label}", (10, 30),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-            cv2.putText(frame, f"{'RECORDING' if recording else 'PAUSED'}  samples: {len(rows)}", (10, 60),
+            status = "RECORDING" if (recording and accepting) else "PAUSED" if not recording else "RECORDING (rejected)"
+            cv2.putText(frame, f"{status}  samples: {len(rows)}", (10, 60),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, status_color, 2)
             cv2.putText(frame, "0-3: select label  s: toggle record  q: quit+save", (10, h - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
