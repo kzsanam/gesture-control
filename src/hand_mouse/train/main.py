@@ -16,8 +16,8 @@ from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), "../../../data/landmarks.csv")
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "../../../data/gesture_model.pkl")
+DATA_PATH = os.path.join(os.path.dirname(__file__), "../../../../data/landmarks.csv")
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "../../../../data/gesture_model.pkl")
 
 
 def main():

@@ -11,6 +11,7 @@ Controls:
 """
 
 import csv
+import math
 import os
 
 import cv2
@@ -23,34 +24,31 @@ LABELS = {
     ord("3"): "ring_pinch",
 }
 
-# For pinch labels: only record when thumb-finger distance < this fraction of hand size
-# For default: only record when ALL pinch distances > this fraction
-PINCH_MAX = 0.18
-PINCH_MIN = 0.30
-
 PINCH_FINGERS = {
     "index_pinch": 8,
     "middle_pinch": 12,
     "ring_pinch": 16,
 }
 
+PINCH_ON = 0.15   # record pinch when normalized dist < this
+PINCH_OFF = 0.20  # record default when ALL normalized dists > this
+
+
+def distance(a, b) -> float:
+    return math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
+
 
 def _pinch_distance(hand, finger_idx) -> float:
-    import math
     wrist = hand.landmark[0]
     middle_mcp = hand.landmark[9]
-    scale = math.sqrt((wrist.x - middle_mcp.x) ** 2 + (wrist.y - middle_mcp.y) ** 2)
-    thumb = hand.landmark[4]
-    finger = hand.landmark[finger_idx]
-    dist = math.sqrt((thumb.x - finger.x) ** 2 + (thumb.y - finger.y) ** 2)
-    return dist / (scale + 1e-6)
+    hand_size = distance(wrist, middle_mcp)
+    return distance(hand.landmark[4], hand.landmark[finger_idx]) / (hand_size + 1e-6)
 
 
 def _should_record(label, hand) -> bool:
     if label in PINCH_FINGERS:
-        return _pinch_distance(hand, PINCH_FINGERS[label]) < PINCH_MAX
-    # default: accept only when no finger is close to thumb
-    return all(_pinch_distance(hand, idx) > PINCH_MIN for idx in PINCH_FINGERS.values())
+        return _pinch_distance(hand, PINCH_FINGERS[label]) < PINCH_ON
+    return all(_pinch_distance(hand, idx) > PINCH_OFF for idx in PINCH_FINGERS.values())
 
 OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "../../../data/landmarks.csv")
 

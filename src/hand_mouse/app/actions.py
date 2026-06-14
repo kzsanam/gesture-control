@@ -1,19 +1,8 @@
 import time
-from enum import Enum
 
 import pyautogui
 
-from hand_mouse.app.gestures import Gesture
-
-
-class ActionEnum(Enum):
-    IDLE = 0
-    CLICK = 1
-    MOVE = 2
-    HOLD = 3
-    SCROLL = 4
-    DRAG = 5
-    RIGHT_CLICK = 6
+from hand_mouse.app.states import ActionEnum, Gesture
 
 
 class ActionRunner:
@@ -50,8 +39,8 @@ class ActionRunner:
 
         if self.prev_x == 0 and self.prev_y == 0:
             self.prev_x = x
-            self.prev_y = y
 
+            self.prev_y = y
         smooth_x = self.prev_x + self.SMOOTHING * (x - self.prev_x)
         smooth_y = self.prev_y + self.SMOOTHING * (y - self.prev_y)
 
